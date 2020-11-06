@@ -15,18 +15,10 @@
 ################################################################################
 
 FROM gcr.io/oss-fuzz-base/base-builder
-MAINTAINER rlohningqt@gmail.com
-RUN apt-get update && apt-get install -y build-essential python libxcb-xinerama0-dev && apt-get install --no-install-recommends afl-doc
-RUN git clone --branch 5.15 --depth 1 git://code.qt.io/qt/qt5.git qt
-WORKDIR qt
-RUN perl init-repository --module-subset=qtbase
-
-# temporary compile fix
-WORKDIR qtbase
-RUN git config user.name qt-local
-RUN git config user.email qt-local@oss-fuzz
-RUN git fetch "https://codereview.qt-project.org/qt/qtbase" refs/changes/90/289190/2 && git cherry-pick FETCH_HEAD
-
-WORKDIR $SRC
+RUN apt-get update && apt-get install -y libc6-dev:i386
+RUN git clone --branch 5.15 --depth 1 --shallow-submodules \
+        --recurse-submodules=qtbase \
+        --recurse-submodules=qtsvg \
+        git://code.qt.io/qt/qt5.git qt
 RUN git clone --depth 1 git://code.qt.io/qt/qtqa.git
-COPY build.sh $SRC/
+RUN cp qtqa/fuzzing/oss-fuzz/build.sh $SRC/

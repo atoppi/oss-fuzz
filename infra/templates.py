@@ -13,9 +13,11 @@
 # limitations under the License.
 #
 ################################################################################
+"""Templates for OSS-Fuzz project files."""
 
 PROJECT_YAML_TEMPLATE = """\
 homepage: "<your_project_homepage>"
+language: <programming_language>  # Example values: c, c++, go, rust.
 primary_contact: "<primary_contact_email>"
 """
 
@@ -37,7 +39,6 @@ DOCKER_TEMPLATE = """\
 ################################################################################
 
 FROM gcr.io/oss-fuzz-base/base-builder
-MAINTAINER your@email.com
 RUN apt-get update && apt-get install -y make autoconf automake libtool
 RUN git clone --depth 1 <git_url> %(project_name)s     # or use other version control
 WORKDIR %(project_name)s

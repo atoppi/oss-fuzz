@@ -17,24 +17,34 @@
 
 # Note: This project creates Rust fuzz targets exclusively
 
-export CUSTOM_LIBFUZZER_PATH="$LIB_FUZZING_ENGINE_DEPRECATED"
-export CUSTOM_LIBFUZZER_STD_CXX=c++
-PROJECT_DIR=$SRC/wasmtime
+build() {
+  project=$1
+  shift
+  fuzzer_prefix=$1
+  shift
+  PROJECT_DIR=$SRC/$project
 
-# Because Rust does not support sanitizers via CFLAGS/CXXFLAGS, the environment
-# variables are overridden with values from base-images/base-clang only
+  cd $PROJECT_DIR/fuzz && cargo fuzz build -O --debug-assertions "$@"
 
-export CFLAGS="-O1 -fno-omit-frame-pointer -gline-tables-only -DFUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION"
-export CXXFLAGS_EXTRA="-stdlib=libc++"
-export CXXFLAGS="$CFLAGS $CXXFLAGS_EXTRA"
-export RUSTFLAGS="-Cdebuginfo=1 -Cforce-frame-pointers"
+  FUZZ_TARGET_OUTPUT_DIR=$PROJECT_DIR/target/x86_64-unknown-linux-gnu/release
 
-cd $PROJECT_DIR/fuzz && cargo fuzz build -O --debug-assertions
+  for f in $PROJECT_DIR/fuzz/fuzz_targets/*.rs; do
+      src_name=$(basename ${f%.*})
+      dst_name=$fuzzer_prefix$src_name
+      cp $FUZZ_TARGET_OUTPUT_DIR/$src_name $OUT/$dst_name
 
-FUZZ_TARGET_OUTPUT_DIR=$PROJECT_DIR/target/x86_64-unknown-linux-gnu/release
-for f in $SRC/wasmtime/fuzz/fuzz_targets/*.rs
-do
-    FUZZ_TARGET_NAME=$(basename ${f%.*})
-    cp $FUZZ_TARGET_OUTPUT_DIR/$FUZZ_TARGET_NAME $OUT/
-    zip -jr $OUT/${FUZZ_TARGET_NAME}_seed_corpus.zip $PROJECT_DIR/wasmtime-libfuzzer-corpus/$FUZZ_TARGET_NAME/
-done
+      if [[ -d $SRC/wasmtime/wasmtime-libfuzzer-corpus/$dst_name/ ]]; then
+          zip -jr \
+              $OUT/${dst_name}_seed_corpus.zip \
+              $SRC/wasmtime/wasmtime-libfuzzer-corpus/$dst_name/
+      fi
+
+      cp $SRC/default.options $OUT/$dst_name.options
+  done
+}
+
+# Build with all features to enable the binaryen-using fuzz targets, and
+# the peepmatic fuzz targets.
+build wasmtime "" --all-features
+
+build wasm-tools wasm-tools-

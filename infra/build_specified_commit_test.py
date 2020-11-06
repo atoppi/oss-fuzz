@@ -44,8 +44,12 @@ class BuildImageIntegrationTests(unittest.TestCase):
 
     with tempfile.TemporaryDirectory() as tmp_dir:
       test_case = test_repos.TEST_REPOS[0]
+      self.assertTrue(helper.build_image_impl(test_case.project_name))
+      host_src_dir = build_specified_commit.copy_src_from_docker(
+          test_case.project_name, tmp_dir)
+
       test_repo_manager = repo_manager.RepoManager(
-          test_case.git_url, tmp_dir, repo_name=test_case.oss_repo_name)
+          test_case.git_url, host_src_dir, repo_name=test_case.oss_repo_name)
       build_data = build_specified_commit.BuildData(
           sanitizer='address',
           architecture='x86_64',
@@ -54,13 +58,13 @@ class BuildImageIntegrationTests(unittest.TestCase):
 
       build_specified_commit.build_fuzzers_from_commit(test_case.old_commit,
                                                        test_repo_manager,
-                                                       build_data)
+                                                       host_src_dir, build_data)
       old_error_code = helper.reproduce_impl(test_case.project_name,
                                              test_case.fuzz_target, False, [],
                                              [], test_case.test_case_path)
       build_specified_commit.build_fuzzers_from_commit(test_case.new_commit,
                                                        test_repo_manager,
-                                                       build_data)
+                                                       host_src_dir, build_data)
       new_error_code = helper.reproduce_impl(test_case.project_name,
                                              test_case.fuzz_target, False, [],
                                              [], test_case.test_case_path)
@@ -69,11 +73,12 @@ class BuildImageIntegrationTests(unittest.TestCase):
   def test_detect_main_repo_from_commit(self):
     """Test the detect main repo function from build specific commit module."""
     for example_repo in test_repos.TEST_REPOS:
-      repo_origin, repo_name = build_specified_commit.detect_main_repo(
-          example_repo.project_name, commit=example_repo.new_commit)
-      self.assertEqual(repo_origin, example_repo.git_url)
-      self.assertEqual(repo_name,
-                       os.path.join('/src', example_repo.oss_repo_name))
+      if example_repo.new_commit:
+        repo_origin, repo_name = build_specified_commit.detect_main_repo(
+            example_repo.project_name, commit=example_repo.new_commit)
+        self.assertEqual(repo_origin, example_repo.git_url)
+        self.assertEqual(repo_name,
+                         os.path.join('/src', example_repo.oss_repo_name))
 
     repo_origin, repo_name = build_specified_commit.detect_main_repo(
         test_repos.INVALID_REPO.project_name,
@@ -87,8 +92,9 @@ class BuildImageIntegrationTests(unittest.TestCase):
       repo_origin, repo_name = build_specified_commit.detect_main_repo(
           example_repo.project_name, repo_name=example_repo.git_repo_name)
       self.assertEqual(repo_origin, example_repo.git_url)
-      self.assertEqual(repo_name,
-                       os.path.join('/src', example_repo.oss_repo_name))
+      self.assertEqual(
+          repo_name,
+          os.path.join(example_repo.image_location, example_repo.oss_repo_name))
 
     repo_origin, repo_name = build_specified_commit.detect_main_repo(
         test_repos.INVALID_REPO.project_name,

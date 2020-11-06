@@ -60,7 +60,7 @@ then
 fi
 
 
-# Verify that the given fuzz target is corectly built to run with a particular
+# Verify that the given fuzz target is correctly built to run with a particular
 # engine.
 function check_engine {
   local FUZZER=$1
@@ -98,6 +98,14 @@ function check_engine {
       cat $FUZZER_OUTPUT
       return 1
     fi
+  elif [[ "$FUZZING_ENGINE" == honggfuzz ]]; then
+    SKIP_SEED_CORPUS=1 timeout --preserve-status -s INT 20s run_fuzzer $FUZZER_NAME &>$FUZZER_OUTPUT
+    CHECK_PASSED=$(egrep "^Sz:[0-9]+ Tm:[0-9]+" -c $FUZZER_OUTPUT)
+    if (( $CHECK_PASSED == 0 )); then
+      echo "BAD BUILD: fuzzing $FUZZER with honggfuzz failed."
+      cat $FUZZER_OUTPUT
+      return 1
+    fi
   elif [[ "$FUZZING_ENGINE" == dataflow ]]; then
     $FUZZER &> $FUZZER_OUTPUT
     local NUMBER_OF_FUNCTIONS=$(grep -Po "INFO:\s+\K[[:digit:]]+(?=\s+instrumented function.*)" $FUZZER_OUTPUT)
@@ -122,7 +130,8 @@ function check_startup_crash {
   local CHECK_PASSED=0
 
   if [[ "$FUZZING_ENGINE" = libfuzzer ]]; then
-    $FUZZER -seed=1337 -runs=$MIN_NUMBER_OF_RUNS &>$FUZZER_OUTPUT
+    # Skip seed corpus as there is another explicit check that uses seed corpora.
+    SKIP_SEED_CORPUS=1 run_fuzzer $FUZZER_NAME -seed=1337 -runs=$MIN_NUMBER_OF_RUNS &>$FUZZER_OUTPUT
     CHECK_PASSED=$(egrep "Done $MIN_NUMBER_OF_RUNS runs" -c $FUZZER_OUTPUT)
   elif [[ "$FUZZING_ENGINE" = afl ]]; then
     # TODO(https://github.com/google/oss-fuzz/issues/2470): Dont use

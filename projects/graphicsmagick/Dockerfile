@@ -15,8 +15,7 @@
 ################################################################################
 
 FROM gcr.io/oss-fuzz-base/base-builder
-MAINTAINER alex.gaynor@gmail.com
-RUN apt-get update && apt-get install -y mercurial automake autopoint cmake libtool nasm pkg-config
+RUN apt-get update && apt-get install -y mercurial automake autopoint cmake libtool nasm pkg-config po4a
 RUN hg clone --time -b default http://hg.code.sf.net/p/graphicsmagick/code graphicsmagick || \
     hg clone --time -b default http://hg.code.sf.net/p/graphicsmagick/code graphicsmagick || \
     hg clone --time -b default http://hg.code.sf.net/p/graphicsmagick/code graphicsmagick
@@ -27,7 +26,7 @@ RUN git clone --depth 1 https://github.com/madler/zlib
 RUN git clone --depth 1 https://github.com/xz-mirror/xz
 RUN git clone --depth 1 https://github.com/facebook/zstd
 RUN git clone --depth 1 https://github.com/libjpeg-turbo/libjpeg-turbo
-RUN git clone --depth 1 https://git.savannah.nongnu.org/r/freetype/freetype2
+RUN git clone https://git.savannah.nongnu.org/r/freetype/freetype2.git/
 RUN git clone --depth 1 https://github.com/pnggroup/libpng
 RUN git clone --depth 1 https://github.com/mm2/Little-CMS
 RUN git clone https://git.ghostscript.com/ghostpdl.git

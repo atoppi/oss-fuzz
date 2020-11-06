@@ -37,13 +37,14 @@ static int objdump_sprintf (void *vf, const char *format, ...)
     va_start (args, format);
     if (f->pos >= MAX_TEXT_SIZE){
         printf("buffer needs more space\n");
+        //reset
+        f->pos=0;
         return 0;
     }
     n = vsnprintf (f->buffer + f->pos, MAX_TEXT_SIZE - f->pos, format, args);
     //vfprintf(stdout, format, args);
     va_end (args);
     f->pos += n;
-
     return n;
 }
 
@@ -53,8 +54,9 @@ int LLVMFuzzerTestOneInput(const uint8_t *Data, size_t Size) {
     struct disassemble_info disasm_info;
     SFILE s;
 
-    if (Size < 10) {
+    if (Size < 10 || Size > 16394) {
         // 10 bytes for options
+        // 16394 limit code to prevent timeouts
         return 0;
     }
 
@@ -79,7 +81,17 @@ int LLVMFuzzerTestOneInput(const uint8_t *Data, size_t Size) {
         disassembler_ftype disasfunc = disassembler(disasm_info.arch, 0, disasm_info.mach, NULL);
         if (disasfunc != NULL) {
             disassemble_init_for_target(&disasm_info);
-            disasfunc(0x1000, &disasm_info);
+            while (1) {
+                s.pos = 0;
+                int octets = disasfunc(disasm_info.buffer_vma, &disasm_info);
+                if (octets < (int) disasm_info.octets_per_byte)
+                    break;
+                if (disasm_info.buffer_length <= (size_t) octets)
+                    break;
+                disasm_info.buffer += octets;
+                disasm_info.buffer_vma += octets / disasm_info.octets_per_byte;
+                disasm_info.buffer_length -= octets;
+            }
             disassemble_free_target(&disasm_info);
         }
     }
